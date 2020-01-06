@@ -295,7 +295,7 @@ var _ = Describe("MySQL", func() {
 					if mysql == nil {
 						Skip("Skipping")
 					}
-					By("Check if Postgres " + mysql.Name + " exists.")
+					By("Check if MySQL " + mysql.Name + " exists.")
 					_, err := f.GetMySQL(mysql.ObjectMeta)
 					if err != nil {
 						if kerr.IsNotFound(err) {
@@ -599,17 +599,29 @@ var _ = Describe("MySQL", func() {
 				})
 
 				Context("Delete One Snapshot keeping others", func() {
+					var initScriptConfigmap *core.ConfigMap
+
 					BeforeEach(func() {
+						initScriptConfigmap = f.InitScriptConfigMap()
+						By("Create init Script ConfigMap: " + initScriptConfigmap.Name)
+						Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
+
 						mysql.Spec.Init = &api.InitSpec{
 							ScriptSource: &api.ScriptSourceSpec{
 								VolumeSource: core.VolumeSource{
-									GitRepo: &core.GitRepoVolumeSource{
-										Repository: "https://github.com/kubedb/mysql-init-scripts.git",
-										Directory:  ".",
+									ConfigMap: &core.ConfigMapVolumeSource{
+										LocalObjectReference: core.LocalObjectReference{
+											Name: initScriptConfigmap.Name,
+										},
 									},
 								},
 							},
 						}
+					})
+
+					AfterEach(func() {
+						By("Deleting configMap: " + initScriptConfigmap.Name)
+						Expect(f.DeleteConfigMap(initScriptConfigmap.ObjectMeta)).NotTo(HaveOccurred())
 					})
 
 					It("Delete One Snapshot keeping others", func() {

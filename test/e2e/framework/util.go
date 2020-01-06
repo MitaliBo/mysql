@@ -17,14 +17,12 @@ package framework
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	api "kubedb.dev/apimachinery/apis/kubedb/v1alpha1"
 
 	"github.com/appscode/go/types"
 	shell "github.com/codeskyblue/go-sh"
-	core "k8s.io/api/core/v1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -44,32 +42,6 @@ func deleteInBackground() *metav1.DeleteOptions {
 func deleteInForeground() *metav1.DeleteOptions {
 	policy := metav1.DeletePropagationForeground
 	return &metav1.DeleteOptions{PropagationPolicy: &policy}
-}
-
-func (f *Invocation) GetCustomConfig(configs []string) *core.ConfigMap {
-	configs = append([]string{"[mysqld]"}, configs...)
-	return &core.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      f.app,
-			Namespace: f.namespace,
-		},
-		Data: map[string]string{
-			"my-custom.cnf": strings.Join(configs, "\n"),
-		},
-	}
-}
-
-func (f *Invocation) CreateConfigMap(obj *core.ConfigMap) error {
-	_, err := f.kubeClient.CoreV1().ConfigMaps(obj.Namespace).Create(obj)
-	return err
-}
-
-func (f *Framework) DeleteConfigMap(meta metav1.ObjectMeta) error {
-	err := f.kubeClient.CoreV1().ConfigMaps(meta.Namespace).Delete(meta.Name, deleteInForeground())
-	if !kerr.IsNotFound(err) {
-		return err
-	}
-	return nil
 }
 
 func (f *Framework) CleanWorkloadLeftOvers() {
