@@ -261,6 +261,12 @@ var _ = Describe("MySQL", func() {
 		f.CleanWorkloadLeftOvers()
 	})
 
+	JustAfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			f.PrintDebugHelpers()
+		}
+	})
+
 	Describe("Test", func() {
 
 		Context("General", func() {

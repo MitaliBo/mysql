@@ -128,6 +128,12 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 		CheckDBVersionForGroupReplication()
 	})
 
+	JustAfterEach(func() {
+		if CurrentGinkgoTestDescription().Failed {
+			f.PrintDebugHelpers()
+		}
+	})
+
 	Context("Behaviour tests", func() {
 		BeforeEach(func() {
 			createAndWaitForRunning()
