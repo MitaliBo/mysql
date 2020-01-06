@@ -36,8 +36,8 @@ import (
 )
 
 var (
-	JobPvcStorageSize = "2Gi"
-	DBPvcStorageSize  = "1Gi"
+	JobPvcStorageSize = "100Mi"
+	DBPvcStorageSize  = "50Mi"
 )
 
 const (

@@ -263,7 +263,10 @@ var _ = Describe("MySQL", func() {
 
 	JustAfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			f.PrintDebugHelpers()
+			if mysql.Spec.Replicas == nil {
+				mysql.Spec.Replicas = types.Int32P(1)
+			}
+			f.PrintDebugHelpers(mysql.Name, int(*mysql.Spec.Replicas))
 		}
 	})
 
@@ -602,7 +605,8 @@ var _ = Describe("MySQL", func() {
 					var initScriptConfigmap *core.ConfigMap
 
 					BeforeEach(func() {
-						initScriptConfigmap = f.InitScriptConfigMap()
+						initScriptConfigmap, err = f.InitScriptConfigMap()
+						Expect(err).ShouldNot(HaveOccurred())
 						By("Create init Script ConfigMap: " + initScriptConfigmap.Name)
 						Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
 
@@ -684,34 +688,60 @@ var _ = Describe("MySQL", func() {
 				})
 
 				Context("With Init", func() {
+					var initScriptConfigmap *core.ConfigMap
+
 					BeforeEach(func() {
+						initScriptConfigmap, err = f.InitScriptConfigMap()
+						Expect(err).ShouldNot(HaveOccurred())
+						By("Create init Script ConfigMap: " + initScriptConfigmap.Name)
+						Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
+
 						mysql.Spec.Init = &api.InitSpec{
 							ScriptSource: &api.ScriptSourceSpec{
 								VolumeSource: core.VolumeSource{
-									GitRepo: &core.GitRepoVolumeSource{
-										Repository: "https://github.com/kubedb/mysql-init-scripts.git",
-										Directory:  ".",
+									ConfigMap: &core.ConfigMapVolumeSource{
+										LocalObjectReference: core.LocalObjectReference{
+											Name: initScriptConfigmap.Name,
+										},
 									},
 								},
 							},
 						}
 					})
 
+					AfterEach(func() {
+						By("Deleting configMap: " + initScriptConfigmap.Name)
+						Expect(f.DeleteConfigMap(initScriptConfigmap.ObjectMeta)).NotTo(HaveOccurred())
+					})
+
 					It("should take Snapshot successfully", shouldTakeSnapshot)
 				})
 
 				Context("Delete One Snapshot keeping others", func() {
+					var initScriptConfigmap *core.ConfigMap
+
 					BeforeEach(func() {
+						initScriptConfigmap, err = f.InitScriptConfigMap()
+						Expect(err).ShouldNot(HaveOccurred())
+						By("Create init Script ConfigMap: " + initScriptConfigmap.Name)
+						Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
+
 						mysql.Spec.Init = &api.InitSpec{
 							ScriptSource: &api.ScriptSourceSpec{
 								VolumeSource: core.VolumeSource{
-									GitRepo: &core.GitRepoVolumeSource{
-										Repository: "https://github.com/kubedb/mysql-init-scripts.git",
-										Directory:  ".",
+									ConfigMap: &core.ConfigMapVolumeSource{
+										LocalObjectReference: core.LocalObjectReference{
+											Name: initScriptConfigmap.Name,
+										},
 									},
 								},
 							},
 						}
+					})
+
+					AfterEach(func() {
+						By("Deleting configMap: " + initScriptConfigmap.Name)
+						Expect(f.DeleteConfigMap(initScriptConfigmap.ObjectMeta)).NotTo(HaveOccurred())
 					})
 
 					It("Delete One Snapshot keeping others", func() {
@@ -773,17 +803,30 @@ var _ = Describe("MySQL", func() {
 				It("should take Snapshot successfully", shouldInsertDataAndTakeSnapshot)
 
 				Context("Delete One Snapshot keeping others", func() {
+					var initScriptConfigmap *core.ConfigMap
+
 					BeforeEach(func() {
+						initScriptConfigmap, err = f.InitScriptConfigMap()
+						Expect(err).ShouldNot(HaveOccurred())
+						By("Create init Script ConfigMap: " + initScriptConfigmap.Name)
+						Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
+
 						mysql.Spec.Init = &api.InitSpec{
 							ScriptSource: &api.ScriptSourceSpec{
 								VolumeSource: core.VolumeSource{
-									GitRepo: &core.GitRepoVolumeSource{
-										Repository: "https://github.com/kubedb/mysql-init-scripts.git",
-										Directory:  ".",
+									ConfigMap: &core.ConfigMapVolumeSource{
+										LocalObjectReference: core.LocalObjectReference{
+											Name: initScriptConfigmap.Name,
+										},
 									},
 								},
 							},
 						}
+					})
+
+					AfterEach(func() {
+						By("Deleting configMap: " + initScriptConfigmap.Name)
+						Expect(f.DeleteConfigMap(initScriptConfigmap.ObjectMeta)).NotTo(HaveOccurred())
 					})
 
 					It("Delete One Snapshot keeping others", func() {
@@ -1032,17 +1075,30 @@ var _ = Describe("MySQL", func() {
 		Context("Initialize", func() {
 
 			Context("With Script", func() {
+				var initScriptConfigmap *core.ConfigMap
+
 				BeforeEach(func() {
+					initScriptConfigmap, err = f.InitScriptConfigMap()
+					Expect(err).ShouldNot(HaveOccurred())
+					By("Create init Script ConfigMap: " + initScriptConfigmap.Name + "\n" + initScriptConfigmap.Data["init.sql"])
+					Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
+
 					mysql.Spec.Init = &api.InitSpec{
 						ScriptSource: &api.ScriptSourceSpec{
 							VolumeSource: core.VolumeSource{
-								GitRepo: &core.GitRepoVolumeSource{
-									Repository: "https://github.com/kubedb/mysql-init-scripts.git",
-									Directory:  ".",
+								ConfigMap: &core.ConfigMapVolumeSource{
+									LocalObjectReference: core.LocalObjectReference{
+										Name: initScriptConfigmap.Name,
+									},
 								},
 							},
 						},
 					}
+				})
+
+				AfterEach(func() {
+					By("Deleting configMap: " + initScriptConfigmap.Name)
+					Expect(f.DeleteConfigMap(initScriptConfigmap.ObjectMeta)).NotTo(HaveOccurred())
 				})
 
 				It("should run successfully", func() {
@@ -1182,7 +1238,7 @@ var _ = Describe("MySQL", func() {
 				})
 
 				var createAndWaitForInitializing = func() {
-					By("Creating MySQL: " + mysql.Name)
+					By("Creating MySQL: " + mysql.Name + " " + string(*mysql.Spec.Replicas))
 					err = f.CreateMySQL(mysql)
 					Expect(err).NotTo(HaveOccurred())
 
@@ -1379,17 +1435,30 @@ var _ = Describe("MySQL", func() {
 			})
 
 			Context("with init Script", func() {
+				var initScriptConfigmap *core.ConfigMap
+
 				BeforeEach(func() {
+					initScriptConfigmap, err = f.InitScriptConfigMap()
+					Expect(err).ShouldNot(HaveOccurred())
+					By("Create init Script ConfigMap: " + initScriptConfigmap.Name)
+					Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
+
 					mysql.Spec.Init = &api.InitSpec{
 						ScriptSource: &api.ScriptSourceSpec{
 							VolumeSource: core.VolumeSource{
-								GitRepo: &core.GitRepoVolumeSource{
-									Repository: "https://github.com/kubedb/mysql-init-scripts.git",
-									Directory:  ".",
+								ConfigMap: &core.ConfigMapVolumeSource{
+									LocalObjectReference: core.LocalObjectReference{
+										Name: initScriptConfigmap.Name,
+									},
 								},
 							},
 						},
 					}
+				})
+
+				AfterEach(func() {
+					By("Deleting configMap: " + initScriptConfigmap.Name)
+					Expect(f.DeleteConfigMap(initScriptConfigmap.ObjectMeta)).NotTo(HaveOccurred())
 				})
 
 				It("should resume DormantDatabase successfully", func() {
@@ -1517,18 +1586,30 @@ var _ = Describe("MySQL", func() {
 			})
 
 			Context("Multiple times with init", func() {
+				var initScriptConfigmap *core.ConfigMap
 
 				BeforeEach(func() {
+					initScriptConfigmap, err = f.InitScriptConfigMap()
+					Expect(err).ShouldNot(HaveOccurred())
+					By("Create init Script ConfigMap: " + initScriptConfigmap.Name)
+					Expect(f.CreateConfigMap(initScriptConfigmap)).ShouldNot(HaveOccurred())
+
 					mysql.Spec.Init = &api.InitSpec{
 						ScriptSource: &api.ScriptSourceSpec{
 							VolumeSource: core.VolumeSource{
-								GitRepo: &core.GitRepoVolumeSource{
-									Repository: "https://github.com/kubedb/mysql-init-scripts.git",
-									Directory:  ".",
+								ConfigMap: &core.ConfigMapVolumeSource{
+									LocalObjectReference: core.LocalObjectReference{
+										Name: initScriptConfigmap.Name,
+									},
 								},
 							},
 						},
 					}
+				})
+
+				AfterEach(func() {
+					By("Deleting configMap: " + initScriptConfigmap.Name)
+					Expect(f.DeleteConfigMap(initScriptConfigmap.ObjectMeta)).NotTo(HaveOccurred())
 				})
 
 				It("should resume DormantDatabase successfully", func() {

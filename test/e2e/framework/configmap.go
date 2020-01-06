@@ -1,57 +1,56 @@
+/*
+Copyright The KubeDB Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package framework
 
 import (
+	"bytes"
 	"strings"
 
+	shell "github.com/codeskyblue/go-sh"
 	core "k8s.io/api/core/v1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var initSQL = `
-USE 'mysql'';
+func (f *Framework) InitScriptConfigMap() (*core.ConfigMap, error) {
+	sh := shell.NewSession()
 
-DROP TABLE IF EXISTS
-    'kubedb_table'';
+	var execOut bytes.Buffer
+	sh.Stdout = &execOut
+	if err := sh.Command("which", "curl").Run(); err != nil {
+		return nil, err
+	}
 
-CREATE TABLE 'kubedb_table''(
-    'id' BIGINT(20) NOT NULL,
-    'name' VARCHAR(255) DEFAULT NULL
-);
+	curlLoc := strings.TrimSpace(execOut.String())
+	execOut.Reset()
 
---
--- Dumping data for table 'kubedb_table'
---
+	sh.ShowCMD = true
+	if err := sh.Command(curlLoc, "-fsSL", "https://github.com/kubedb/mysql-init-scripts/raw/master/init.sql").Run(); err != nil {
+		return nil, err
+	}
 
-INSERT INTO 'kubedb_table'('id', 'name')
-VALUES(1, 'name1'),(2, 'name2'),(3, 'name3');
-
---
--- Indexes for table 'kubedb_table'
---
-
-ALTER TABLE
-    'kubedb_table' ADD PRIMARY KEY('id');
-
---
--- AUTO_INCREMENT for table 'kubedb_table'
---
-
-ALTER TABLE
-    'kubedb_table' MODIFY 'id' BIGINT(20) NOT NULL AUTO_INCREMENT,
-    AUTO_INCREMENT = 4;
-`
-
-func (f *Framework) InitScriptConfigMap() *core.ConfigMap {
 	return &core.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-init-script",
 			Namespace: f.namespace,
 		},
 		Data: map[string]string{
-			"init.sql": initSQL,
+			"init.sql": execOut.String(),
 		},
-	}
+	}, nil
 }
 
 func (f *Invocation) GetCustomConfig(configs []string) *core.ConfigMap {

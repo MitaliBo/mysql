@@ -84,7 +84,7 @@ func (f *Framework) WaitUntilPodRunningBySelector(mysql *api.MySQL) error {
 	)
 }
 
-func (f *Framework) PrintDebugHelpers() {
+func (f *Framework) PrintDebugHelpers(mysqlName string, replicas int) {
 	sh := shell.NewSession()
 	fmt.Println("\n======================================[ Describe Job ]===================================================")
 	if err := sh.Command("/usr/bin/kubectl", "describe", "job", "-n", f.Namespace()).Run(); err != nil {
@@ -99,6 +99,13 @@ func (f *Framework) PrintDebugHelpers() {
 	fmt.Println("\n======================================[ Describe MySQL ]===================================================")
 	if err := sh.Command("/usr/bin/kubectl", "describe", "mysql", "-n", f.Namespace()).Run(); err != nil {
 		fmt.Println(err)
+	}
+
+	fmt.Println("\n======================================[ MySQL Server Log ]===================================================")
+	for i := 0; i < replicas; i++ {
+		if err := sh.Command("/usr/bin/kubectl", "logs", fmt.Sprintf("%s-%d", mysqlName, i), "-n", f.Namespace()).Run(); err != nil {
+			fmt.Println(err)
+		}
 	}
 
 	fmt.Println("\n======================================[ Describe BackupSession ]==========================================")

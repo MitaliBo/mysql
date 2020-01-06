@@ -130,7 +130,7 @@ var _ = Describe("MySQL Group Replication Tests", func() {
 
 	JustAfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			f.PrintDebugHelpers()
+			f.PrintDebugHelpers(mysql.Name, int(*mysql.Spec.Replicas))
 		}
 	})
 
