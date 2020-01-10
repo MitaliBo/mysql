@@ -1107,6 +1107,7 @@ stash.appscode.dev/stash/client/informers/externalversions/stash/v1alpha1
 stash.appscode.dev/stash/client/informers/externalversions/stash/v1beta1
 stash.appscode.dev/stash/client/listers/stash/v1alpha1
 stash.appscode.dev/stash/client/listers/stash/v1beta1
+stash.appscode.dev/stash/pkg/docker
 stash.appscode.dev/stash/pkg/restic
 # xorm.io/builder v0.3.6
 xorm.io/builder

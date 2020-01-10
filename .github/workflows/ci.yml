@@ -98,9 +98,12 @@ jobs:
         USERNAME: 1gtm
       run: |
         export KUBECONFIG="$(kind get kubeconfig-path)"
-        cd ..
+        cd ../..
+        mkdir -p stashed
+        cd stashed
         git clone https://github.com/stashed/stash
         cd stash
+        git checkout master
         make push install
         # if [ -x "$(command -v helm)" ]; then
         #     helm init --client-only

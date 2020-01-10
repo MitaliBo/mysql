@@ -18,6 +18,15 @@ SHELL=/bin/bash -o pipefail
 # To test stash integration
 .PHONY: stash-install
 stash-install:
+	@cd ../stash; \
+	helm install stash charts/stash \
+		--namespace=kube-system \
+		--set operator.registry=$(REGISTRY) \
+		--set operator.tag=$(TAG) \
+		--set imagePullPolicy=Always \
+	kubectl wait --for=condition=Ready pods -n kube-system -l app=stash --timeout=5m; \
+	kubectl wait --for=condition=Available apiservice -l app=stash --timeout=5m
+
 	@curl -fsSL https://github.com/stashed/installer/raw//deploy/stash.sh | bash
 	@curl -fsSL https://github.com/stashed/catalog/raw/master/deploy/script.sh | bash -s -- --catalog=stash-mysql --docker-registry=stashed
 

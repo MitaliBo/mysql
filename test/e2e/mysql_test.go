@@ -1221,6 +1221,10 @@ var _ = Describe("MySQL", func() {
 					if !f.FoundStashCRDs() {
 						Skip("Skipping tests for stash integration. reason: stash operator is not running.")
 					}
+
+					// install stash-mysql adons
+					Expect(f.InstallMySQLAddon()).NotTo(HaveOccurred())
+					Expect(f.CheckMySQLAddonBeInstalled()).NotTo(HaveOccurred())
 				})
 
 				AfterEach(func() {
@@ -1235,6 +1239,8 @@ var _ = Describe("MySQL", func() {
 					By("Deleting Repository")
 					err = f.DeleteRepository(repo.ObjectMeta)
 					Expect(err).NotTo(HaveOccurred())
+
+					Expect(f.UninstallMySQLAddon()).NotTo(HaveOccurred())
 				})
 
 				var createAndWaitForInitializing = func() {
