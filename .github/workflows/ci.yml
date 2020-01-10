@@ -92,8 +92,16 @@ jobs:
         git checkout master
 
     - name: Install stash and addons
+      env:
+        REGISTRY: kubedbci
+        DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        USERNAME: 1gtm
       run: |
         export KUBECONFIG="$(kind get kubeconfig-path)"
+        cd ..
+        git clone https://github.com/stashed/stash
+        cd stash
+        make push install
         # if [ -x "$(command -v helm)" ]; then
         #     helm init --client-only
         # fi
@@ -103,7 +111,7 @@ jobs:
         #export STASH_IMAGE_TAG=v0.9.0-rc.2-18-gec5c9efd_linux_amd64
         # end =====
 
-        make stash-install
+        # make stash-install
 
     - name: Run e2e tests
       env:

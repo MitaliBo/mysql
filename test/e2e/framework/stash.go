@@ -28,10 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	kutil "kmodules.xyz/client-go"
 	appcat_api "kmodules.xyz/custom-resources/apis/appcatalog/v1alpha1"
+	stash_util "stash.appscode.dev/stash/apis"
 	"stash.appscode.dev/stash/apis/stash/v1alpha1"
 	stashV1alpha1 "stash.appscode.dev/stash/apis/stash/v1alpha1"
 	stashv1beta1 "stash.appscode.dev/stash/apis/stash/v1beta1"
-	"stash.appscode.dev/stash/pkg/util"
 )
 
 var (
@@ -87,7 +87,8 @@ func (f *Framework) WaitUntilBackkupSessionBeCreated(bcMeta metav1.ObjectMeta) (
 	err = wait.PollImmediate(kutil.RetryInterval, kutil.ReadinessTimeout, func() (bool, error) {
 		bsList, err := f.stashClient.StashV1beta1().BackupSessions(bcMeta.Namespace).List(metav1.ListOptions{
 			LabelSelector: labels.Set{
-				util.LabelBackupConfiguration: bcMeta.Name,
+				stash_util.LabelInvokerType: stashv1beta1.ResourceKindBackupConfiguration,
+				stash_util.LabelInvokerName: bcMeta.Name,
 			}.String(),
 		})
 		if err != nil {

@@ -1338,7 +1338,7 @@ var _ = Describe("MySQL", func() {
 						}
 					})
 
-					It("should run successfully", shouldInitializeFromStash)
+					FIt("should run successfully", shouldInitializeFromStash)
 				})
 
 			})

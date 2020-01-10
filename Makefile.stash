@@ -18,7 +18,7 @@ SHELL=/bin/bash -o pipefail
 # To test stash integration
 .PHONY: stash-install
 stash-install:
-	@curl -fsSL https://github.com/stashed/installer/raw/v0.9.0-rc.2/deploy/stash.sh | bash
+	@curl -fsSL https://github.com/stashed/installer/raw//deploy/stash.sh | bash
 	@curl -fsSL https://github.com/stashed/catalog/raw/master/deploy/script.sh | bash -s -- --catalog=stash-mysql --docker-registry=stashed
 
 .PHONY: stash-uninstall

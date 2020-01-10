@@ -33,6 +33,7 @@ import (
 	kext_cs "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	kApi "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1"
 	kutil "kmodules.xyz/client-go"
@@ -88,6 +89,9 @@ func (f *Framework) RunOperatorAndServer(config *restclient.Config, kubeconfigPa
 	defer GinkgoRecover()
 
 	// ensure crds. Mainly for catalogVersions CRD.
+	kubeClient, err := kubernetes.NewForConfig(config)
+	Expect(err).NotTo(HaveOccurred())
+
 	apiExtKubeClient, err := kext_cs.NewForConfig(config)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -95,7 +99,7 @@ func (f *Framework) RunOperatorAndServer(config *restclient.Config, kubeconfigPa
 	crds := []*crd_api.CustomResourceDefinition{
 		catlog.MySQLVersion{}.CustomResourceDefinition(),
 	}
-	err = apiext_util.RegisterCRDs(apiExtKubeClient, crds)
+	err = apiext_util.RegisterCRDs(kubeClient.Discovery(), apiExtKubeClient, crds)
 	Expect(err).NotTo(HaveOccurred())
 
 	sh := shell.NewSession()
