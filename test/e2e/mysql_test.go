@@ -18,6 +18,7 @@ package e2e_test
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	api "kubedb.dev/apimachinery/apis/kubedb/v1alpha1"
 	"kubedb.dev/apimachinery/client/clientset/versioned/typed/kubedb/v1alpha1/util"
@@ -1221,10 +1222,6 @@ var _ = Describe("MySQL", func() {
 					if !f.FoundStashCRDs() {
 						Skip("Skipping tests for stash integration. reason: stash operator is not running.")
 					}
-
-					// install stash-mysql adons
-					Expect(f.InstallMySQLAddon()).NotTo(HaveOccurred())
-					Expect(f.CheckMySQLAddonBeInstalled()).NotTo(HaveOccurred())
 				})
 
 				AfterEach(func() {
@@ -1239,12 +1236,10 @@ var _ = Describe("MySQL", func() {
 					By("Deleting Repository")
 					err = f.DeleteRepository(repo.ObjectMeta)
 					Expect(err).NotTo(HaveOccurred())
-
-					Expect(f.UninstallMySQLAddon()).NotTo(HaveOccurred())
 				})
 
 				var createAndWaitForInitializing = func() {
-					By("Creating MySQL: " + mysql.Name + " " + string(*mysql.Spec.Replicas))
+					By("Creating MySQL: " + mysql.Name + " with replicas " + strconv.Itoa(int(*mysql.Spec.Replicas)))
 					err = f.CreateMySQL(mysql)
 					Expect(err).NotTo(HaveOccurred())
 
@@ -1344,7 +1339,7 @@ var _ = Describe("MySQL", func() {
 						}
 					})
 
-					FIt("should run successfully", shouldInitializeFromStash)
+					It("should run successfully", shouldInitializeFromStash)
 				})
 
 			})

@@ -54,7 +54,8 @@ func (f *Invocation) MySQL() *api.MySQL {
 			},
 		},
 		Spec: api.MySQLSpec{
-			Version: DBCatalogName,
+			Version:  DBCatalogName,
+			Replicas: types.Int32P(1),
 			Storage: &core.PersistentVolumeClaimSpec{
 				Resources: core.ResourceRequirements{
 					Requests: core.ResourceList{

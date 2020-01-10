@@ -17,12 +17,14 @@ package framework
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	api "kubedb.dev/apimachinery/apis/kubedb/v1alpha1"
 
 	"github.com/appscode/go/types"
 	shell "github.com/codeskyblue/go-sh"
+	core "k8s.io/api/core/v1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -84,10 +86,53 @@ func (f *Framework) WaitUntilPodRunningBySelector(mysql *api.MySQL) error {
 	)
 }
 
+func isDebugTarget(containers []core.Container) (bool, []string) {
+	for _, c := range containers {
+		if c.Name == "stash" || c.Name == "stash-init" {
+			return true, []string{"-c", c.Name}
+		} else if strings.HasPrefix(c.Name, "update-status") {
+			return true, []string{"--all-containers"}
+		}
+	}
+	return false, nil
+}
+
 func (f *Framework) PrintDebugHelpers(mysqlName string, replicas int) {
+	fmt.Println("\n============================== mysql replicas ========================")
+	fmt.Println("\n=================================", replicas, "==============================")
+	fmt.Println("\n======================================================================")
+
 	sh := shell.NewSession()
 	fmt.Println("\n======================================[ Describe Job ]===================================================")
 	if err := sh.Command("/usr/bin/kubectl", "describe", "job", "-n", f.Namespace()).Run(); err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("\n===============[ Debug info for Stash sidecar/init-container/backup job/restore job ]===================")
+	if pods, err := f.kubeClient.CoreV1().Pods(f.Namespace()).List(metav1.ListOptions{}); err == nil {
+		for _, pod := range pods.Items {
+			debugTarget, containerArgs := isDebugTarget(append(pod.Spec.InitContainers, pod.Spec.Containers...))
+			if debugTarget {
+				fmt.Printf("\n--------------- Describe Pod: %s -------------------\n", pod.Name)
+				if err := sh.Command("/usr/bin/kubectl", "describe", "po", "-n", f.Namespace(), pod.Name).Run(); err != nil {
+					fmt.Println(err)
+				}
+
+				fmt.Printf("\n---------------- Log from Pod: %s ------------------\n", pod.Name)
+				logArgs := []interface{}{"logs", "-n", f.Namespace(), pod.Name}
+				for i := range containerArgs {
+					logArgs = append(logArgs, containerArgs[i])
+				}
+				err = sh.Command("/usr/bin/kubectl", logArgs...).
+					Command("cut", "-f", "4-", "-d ").
+					Command("awk", `{$2=$2;print}`).
+					Command("uniq").Run()
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+		}
+	} else {
 		fmt.Println(err)
 	}
 
@@ -97,7 +142,7 @@ func (f *Framework) PrintDebugHelpers(mysqlName string, replicas int) {
 	}
 
 	fmt.Println("\n======================================[ Describe MySQL ]===================================================")
-	if err := sh.Command("/usr/bin/kubectl", "describe", "mysql", "-n", f.Namespace()).Run(); err != nil {
+	if err := sh.Command("/usr/bin/kubectl", "describe", "mysql", mysqlName, "-n", f.Namespace()).Run(); err != nil {
 		fmt.Println(err)
 	}
 

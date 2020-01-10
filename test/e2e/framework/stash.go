@@ -32,22 +32,21 @@ import (
 	"stash.appscode.dev/stash/apis/stash/v1alpha1"
 	stashV1alpha1 "stash.appscode.dev/stash/apis/stash/v1alpha1"
 	stashv1beta1 "stash.appscode.dev/stash/apis/stash/v1beta1"
-	"stash.appscode.dev/stash/pkg/docker"
 )
 
-var (
-	//StashMySQLBackupTask  = "my-backup-8.0.14"
-	//StashMySQLRestoreTask = "my-restore-8.0.14"
-	StashMySQLBackupTask  = "my-backup-" + DBCatalogName
-	StashMySQLRestoreTask = "my-restore-" + DBCatalogName
-)
-
-const (
-	MySQLBackupTask      = "mysql-backup-8.0.14"
-	MySQLRestoreTask     = "mysql-restore-8.0.14"
-	MySQLBackupFunction  = "mysql-backup-8.0.14"
-	MySQLRestoreFunction = "mysql-restore-8.0.14"
-)
+//var (
+//	//StashMySQLBackupTask  = "my-backup-8.0.14"
+//	//StashMySQLRestoreTask = "my-restore-8.0.14"
+//	StashMySQLBackupTask  = "my-backup-" + DBCatalogName
+//	StashMySQLRestoreTask = "my-restore-" + DBCatalogName
+//)
+//
+//const (
+//	MySQLBackupTaskPrefix  = "mysql-backup-"
+//	MySQLRestoreTaskPrefix = "mysql-restore-"
+//	//MySQLBackupFunction  = "mysql-backup-8.0.14"
+//	//MySQLRestoreFunction = "mysql-restore-8.0.14"
+//)
 
 func (f *Framework) FoundStashCRDs() bool {
 	return controller.FoundStashCRDs(f.apiExtKubeClient)
@@ -56,21 +55,22 @@ func (f *Framework) FoundStashCRDs() bool {
 func (f *Invocation) BackupConfiguration(meta metav1.ObjectMeta) *stashv1beta1.BackupConfiguration {
 	return &stashv1beta1.BackupConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      meta.Name,
+			Name:      meta.Name + "-bc",
 			Namespace: f.namespace,
 		},
 		Spec: stashv1beta1.BackupConfigurationSpec{
 			Repository: core.LocalObjectReference{
 				Name: meta.Name,
 			},
-			Schedule: "*/3 * * * *",
+			Schedule: "*/2 * * * *",
 			RetentionPolicy: v1alpha1.RetentionPolicy{
 				KeepLast: 5,
+				Name:     "keep-last-5",
 				Prune:    true,
 			},
 			BackupConfigurationTemplateSpec: stashv1beta1.BackupConfigurationTemplateSpec{
 				Task: stashv1beta1.TaskRef{
-					Name: MySQLBackupTask,
+					Name: "mysql-backup-" + DBCatalogName,
 				},
 				Target: &stashv1beta1.BackupTarget{
 					Ref: stashv1beta1.TargetRef{
@@ -148,7 +148,7 @@ func (f *Framework) DeleteRepository(meta metav1.ObjectMeta) error {
 func (f *Invocation) RestoreSession(meta, oldMeta metav1.ObjectMeta) *stashv1beta1.RestoreSession {
 	return &stashv1beta1.RestoreSession{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      meta.Name,
+			Name:      meta.Name + "-rs",
 			Namespace: f.namespace,
 			Labels: map[string]string{
 				"app":                 f.app,
@@ -157,7 +157,7 @@ func (f *Invocation) RestoreSession(meta, oldMeta metav1.ObjectMeta) *stashv1bet
 		},
 		Spec: stashv1beta1.RestoreSessionSpec{
 			Task: stashv1beta1.TaskRef{
-				Name: MySQLRestoreTask,
+				Name: "mysql-restore-" + DBCatalogName,
 			},
 			Repository: core.LocalObjectReference{
 				Name: oldMeta.Name,
@@ -197,246 +197,4 @@ func (f *Framework) EventuallyRestoreSessionPhase(meta metav1.ObjectMeta) Gomega
 		time.Minute*7,
 		time.Second*7,
 	)
-}
-
-// ===========================
-
-func (f *Framework) InstallMySQLAddon() error {
-	image := docker.Docker{
-		Image: "stash-mysql",
-		//Registry: DockerRegistry,
-		Registry: "appscodeci",
-		Tag:      "8.0.14",
-	}
-	// create MySQL backup Function
-	backupFunc := mysqlBackupFunction(image)
-	_, err := f.stashClient.StashV1beta1().Functions().Create(backupFunc)
-	if err != nil {
-		return err
-	}
-	// create MySQL restore function
-	restoreFunc := mysqlRestoreFunction(image)
-	_, err = f.stashClient.StashV1beta1().Functions().Create(restoreFunc)
-	if err != nil {
-		return err
-	}
-	// create MySQL backup Task
-	backupTask := mysqlBackupTask()
-	_, err = f.stashClient.StashV1beta1().Tasks().Create(backupTask)
-	if err != nil {
-		return err
-	}
-	// create MySQL restore Task
-	restoreTask := mysqlRestoreTask()
-	_, err = f.stashClient.StashV1beta1().Tasks().Create(restoreTask)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (f *Framework) UninstallMySQLAddon() error {
-	// delete MySQL backup Function
-	err := f.stashClient.StashV1beta1().Functions().Delete(MySQLBackupFunction, deleteInBackground())
-	if err != nil {
-		return err
-	}
-	// delete MySQL restore Function
-	err = f.stashClient.StashV1beta1().Functions().Delete(MySQLRestoreFunction, deleteInBackground())
-	if err != nil {
-		return err
-	}
-	// delete MySQL backup Task
-	err = f.stashClient.StashV1beta1().Tasks().Delete(MySQLBackupTask, deleteInBackground())
-	if err != nil {
-		return err
-	}
-	// delete MySQL restore Task
-	return f.stashClient.StashV1beta1().Functions().Delete(MySQLRestoreTask, deleteInBackground())
-}
-
-func (f *Invocation) CheckMySQLAddonBeInstalled() error {
-	_, err := f.stashClient.StashV1beta1().Functions().Get(MySQLBackupFunction, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	_, err = f.stashClient.StashV1beta1().Functions().Get(MySQLRestoreFunction, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	_, err = f.stashClient.StashV1beta1().Tasks().Get(MySQLBackupTask, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	_, err = f.stashClient.StashV1beta1().Tasks().Get(MySQLRestoreTask, metav1.GetOptions{})
-	return err
-}
-
-func mysqlBackupFunction(image docker.Docker) *stashv1beta1.Function {
-	return &stashv1beta1.Function{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: MySQLBackupFunction,
-		},
-		Spec: stashv1beta1.FunctionSpec{
-			Image: image.ToContainerImage(),
-			Args: []string{
-				"backup-mysql",
-				// setup information
-				"--provider=${REPOSITORY_PROVIDER:=}",
-				"--bucket=${REPOSITORY_BUCKET:=}",
-				"--endpoint=${REPOSITORY_ENDPOINT:=}",
-				"--path=${REPOSITORY_PREFIX:=}",
-				"--secret-dir=/etc/repository/secret",
-				"--scratch-dir=/tmp",
-				"--enable-cache=${ENABLE_CACHE:=true}",
-				"--max-connections=${MAX_CONNECTIONS:=0}",
-				"--hostname=${HOSTNAME:=}",
-				"--mysql-args=${myArgs:=--all-databases}",
-				// target information
-				"--appbinding=${TARGET_NAME:=}",
-				"--namespace=${NAMESPACE:=default}",
-				// cleanup information
-				"--retention-keep-last=${RETENTION_KEEP_LAST:=0}",
-				"--retention-keep-hourly=${RETENTION_KEEP_HOURLY:=0}",
-				"--retention-keep-daily=${RETENTION_KEEP_DAILY:=0}",
-				"--retention-keep-weekly=${RETENTION_KEEP_WEEKLY:=0}",
-				"--retention-keep-monthly=${RETENTION_KEEP_MONTHLY:=0}",
-				"--retention-keep-yearly=${RETENTION_KEEP_YEARLY:=0}",
-				"--retention-keep-tags=${RETENTION_KEEP_TAGS:=}",
-				"--retention-prune=${RETENTION_PRUNE:=false}",
-				"--retention-dry-run=${RETENTION_DRY_RUN:=false}",
-				// output information
-				"--output-dir=${outputDir:=}",
-			},
-			VolumeMounts: []core.VolumeMount{
-				{
-					Name:      "${secretVolume}",
-					MountPath: "/etc/repository/secret",
-				},
-			},
-		},
-	}
-}
-func mysqlRestoreFunction(image docker.Docker) *stashv1beta1.Function {
-	return &stashv1beta1.Function{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: MySQLRestoreFunction,
-		},
-		Spec: stashv1beta1.FunctionSpec{
-			Image: image.ToContainerImage(),
-			Args: []string{
-				"restore-mysql",
-				// setup information
-				"--provider=${REPOSITORY_PROVIDER:=}",
-				"--bucket=${REPOSITORY_BUCKET:=}",
-				"--endpoint=${REPOSITORY_ENDPOINT:=}",
-				"--path=${REPOSITORY_PREFIX:=}",
-				"--secret-dir=/etc/repository/secret",
-				"--scratch-dir=/tmp",
-				"--enable-cache=${ENABLE_CACHE:=true}",
-				"--max-connections=${MAX_CONNECTIONS:=0}",
-				"--hostname=${HOSTNAME:=}",
-				"--source-hostname=${SOURCE_HOSTNAME:=}",
-				"--mysql-args=${myArgs:=}",
-				// target information
-				"--appbinding=${TARGET_NAME:=}",
-				"--namespace=${NAMESPACE:=default}",
-				"--snapshot=${RESTORE_SNAPSHOTS:=}",
-				// output information
-				"--output-dir=${outputDir:=}",
-			},
-			VolumeMounts: []core.VolumeMount{
-				{
-					Name:      "${secretVolume}",
-					MountPath: "/etc/repository/secret",
-				},
-			},
-		},
-	}
-}
-func mysqlBackupTask() *stashv1beta1.Task {
-	return &stashv1beta1.Task{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: MySQLBackupTask,
-		},
-		Spec: stashv1beta1.TaskSpec{
-			Steps: []stashv1beta1.FunctionRef{
-				{
-					Name: MySQLBackupFunction,
-					Params: []stashv1beta1.Param{
-						{
-							Name:  "outputDir",
-							Value: "/tmp/output",
-						},
-						{
-							Name:  "secretVolume",
-							Value: "secret-volume",
-						},
-					},
-				},
-				{
-					Name: "update-status",
-					Params: []stashv1beta1.Param{
-						{
-							Name:  "outputDir",
-							Value: "/tmp/output",
-						},
-					},
-				},
-			},
-			Volumes: []core.Volume{
-				{
-					Name: "secret-volume",
-					VolumeSource: core.VolumeSource{
-						Secret: &core.SecretVolumeSource{
-							SecretName: "${REPOSITORY_SECRET_NAME}",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-func mysqlRestoreTask() *stashv1beta1.Task {
-	return &stashv1beta1.Task{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: MySQLRestoreTask,
-		},
-		Spec: stashv1beta1.TaskSpec{
-			Steps: []stashv1beta1.FunctionRef{
-				{
-					Name: MySQLRestoreFunction,
-					Params: []stashv1beta1.Param{
-						{
-							Name:  "outputDir",
-							Value: "/tmp/output",
-						},
-						{
-							Name:  "secretVolume",
-							Value: "secret-volume",
-						},
-					},
-				},
-				{
-					Name: "update-status",
-					Params: []stashv1beta1.Param{
-						{
-							Name:  "outputDir",
-							Value: "/tmp/output",
-						},
-					},
-				},
-			},
-			Volumes: []core.Volume{
-				{
-					Name: "secret-volume",
-					VolumeSource: core.VolumeSource{
-						Secret: &core.SecretVolumeSource{
-							SecretName: "${REPOSITORY_SECRET_NAME}",
-						},
-					},
-				},
-			},
-		},
-	}
 }
