@@ -32,7 +32,6 @@ import (
 	"stash.appscode.dev/stash/apis/stash/v1alpha1"
 	stashV1alpha1 "stash.appscode.dev/stash/apis/stash/v1alpha1"
 	stashv1beta1 "stash.appscode.dev/stash/apis/stash/v1beta1"
-
 	"stash.appscode.dev/stash/pkg/docker"
 )
 
@@ -44,10 +43,10 @@ var (
 )
 
 const (
-	MySQLBackupTask        = "mysql-backup-8.0.14"
-	MySQLRestoreTask       = "mysql-restore-8.0.14"
-	MySQLBackupFunction    = "mysql-backup-8.0.14"
-	MySQLRestoreFunction   = "mysql-restore-8.0.14"
+	MySQLBackupTask      = "mysql-backup-8.0.14"
+	MySQLRestoreTask     = "mysql-restore-8.0.14"
+	MySQLBackupFunction  = "mysql-backup-8.0.14"
+	MySQLRestoreFunction = "mysql-restore-8.0.14"
 )
 
 func (f *Framework) FoundStashCRDs() bool {
@@ -204,7 +203,7 @@ func (f *Framework) EventuallyRestoreSessionPhase(meta metav1.ObjectMeta) Gomega
 
 func (f *Framework) InstallMySQLAddon() error {
 	image := docker.Docker{
-		Image:    "stash-mysql",
+		Image: "stash-mysql",
 		//Registry: DockerRegistry,
 		Registry: "appscodeci",
 		Tag:      "8.0.14",
